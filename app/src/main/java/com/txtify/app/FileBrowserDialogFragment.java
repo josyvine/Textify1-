@@ -28,6 +28,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+// New imports for modern Android permission handling
+import android.os.Build;
+import android.provider.Settings;
+import android.net.Uri;
+import android.content.Intent;
+
 public class FileBrowserDialogFragment extends DialogFragment {
 
     // MODIFIED: Updated callback interface
@@ -212,12 +218,31 @@ public class FileBrowserDialogFragment extends DialogFragment {
     }
 
     private void checkAndRequestPermissions() {
-        if (ContextCompat.checkSelfPermission(getContext(), Manifest.permission.READ_EXTERNAL_STORAGE)
-			!= PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},
-							   PERMISSIONS_REQUEST_READ_STORAGE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            // Under Android 11 to 15+, check for All Files Access Manager permission
+            if (Environment.isExternalStorageManager()) {
+                initializeBrowser();
+            } else {
+                try {
+                    Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+                    intent.addCategory("android.intent.category.DEFAULT");
+                    intent.setData(Uri.parse(String.format("package:%s", getContext().getPackageName())));
+                    startActivityForResult(intent, PERMISSIONS_REQUEST_READ_STORAGE);
+                } catch (Exception e) {
+                    Intent intent = new Intent();
+                    intent.setAction(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
+                    startActivityForResult(intent, PERMISSIONS_REQUEST_READ_STORAGE);
+                }
+            }
         } else {
-            initializeBrowser();
+            // Fallback for Android 10 and older devices
+            if (ContextCompat.checkSelfPermission(getContext(), Manifest.permission.READ_EXTERNAL_STORAGE)
+                != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},
+                                   PERMISSIONS_REQUEST_READ_STORAGE);
+            } else {
+                initializeBrowser();
+            }
         }
     }
 
@@ -233,9 +258,23 @@ public class FileBrowserDialogFragment extends DialogFragment {
         }
     }
 
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == PERMISSIONS_REQUEST_READ_STORAGE) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                if (Environment.isExternalStorageManager()) {
+                    initializeBrowser();
+                } else {
+                    Toast.makeText(getContext(), "All Files Access permission is required to browse files.", Toast.LENGTH_LONG).show();
+                    dismiss();
+                }
+            }
+        }
+    }
+
     private void initializeBrowser() {
         File root = Environment.getExternalStorageDirectory();
         navigateTo(root);
     }
 }
-
