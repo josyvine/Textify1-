@@ -6,7 +6,8 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <!-- NEW: Permission to access the internet for the contact form -->
     <uses-permission android:name="android.permission.INTERNET" />
-
+    <!-- NEW: Permission to access and browse all files on Android 11 (API 30) and above -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
 
     <!--
     The 'requestLegacyExternalStorage' attribute is REQUIRED for targetSdkVersion 29
